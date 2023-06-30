@@ -1,0 +1,20 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Load Defaults
+require_relative '../defaults.rb'
+
+# Create PostgreSQL VM
+HOST_IP = IP_1
+postgresql_vagrant_file = File.expand_path("../../postgresql-latest/Vagrantfile", __FILE__)
+load postgresql_vagrant_file
+
+# Create Kafka VM
+HOST_IP = IP_2
+kafka_vagrant_file = File.expand_path("../../kafka-latest/Vagrantfile", __FILE__)
+load kafka_vagrant_file
+
+# Create ClickHouse VM
+HOST_IP = IP_3
+clickhouse_vagrant_file = File.expand_path("../../clickhouse-latest/Vagrantfile", __FILE__)
+load clickhouse_vagrant_file

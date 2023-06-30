@@ -1,0 +1,86 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Load Virtual Box Defaults
+require_relative '../defaults.rb'
+require_relative '../../ubuntu.rb'
+require_relative '../../kafka.rb'
+
+unless defined? VAGRANT_BOX
+    if USE_LTS
+        VAGRANT_BOX = UBUNTU_LATEST_LTS
+    else
+        VAGRANT_BOX = UBUNTU_LATEST
+    end
+end
+puts "Using Ubuntu version: " + VAGRANT_BOX
+
+VAGRANT_BOX_VERSION = ">= 0"
+
+unless defined? KAFKA_VERSION
+    if USE_LTS
+        KAFKA_VERSION = KAFKA_LATEST_LTS_FULL
+    else
+        KAFKA_VERSION = KAFKA_LATEST_FULL
+    end
+end
+puts "Using Kafka version: " + KAFKA_VERSION
+
+VM_NAME = "kafka-" + KAFKA_VERSION
+
+unless defined? HOST_IP
+    HOST_IP = IP_1
+end
+
+Vagrant.configure("2") do |config|
+    config.vm.box_download_insecure=true
+    config.vm.box = VAGRANT_BOX
+    config.vm.box_version = VAGRANT_BOX_VERSION
+    config.vm.hostname = VM_NAME
+    config.vm.network :public_network, bridge: PUB_NET_IFACE
+    config.vm.provider "virtualbox" do |vb|
+        vb.name = VM_NAME
+        vb.memory = MEMORY_SIZE
+        vb.cpus = NUM_OF_CPUS
+        vb.check_guest_additions = false
+        vb.gui = WITH_GUI
+        vb.customize ["modifyvm", :id, "--vram", VIDEO_MEMORY_SIZE]
+        vb.customize ["modifyvm", :id, "--accelerate3d", "on"]
+        vb.customize ["modifyvm", :id, "--clipboard-mode", "bidirectional"]
+        vb.customize ["modifyvm", :id, "--draganddrop", "bidirectional"]
+        vb.customize ["modifyvm", :id, "--uartmode1", "disconnected" ]
+    end
+    config.ssh.insert_key = false
+    config.ssh.forward_agent = true
+    config.vm.boot_timeout = 600
+
+    config.vm.provision "shell",
+        env: {
+            "NET_GATEWAY" => NET_GATEWAY,
+            "DNS" => DNS,
+            "HOST_IP" => HOST_IP,
+        },
+        inline: $script_ubuntu_configure_network
+    config.vm.provision "shell", inline: $script_apt_update_upgrade
+    config.vm.provision "shell", inline: $script_ubuntu_change_keyboard_layout
+    if WITH_GUI
+        config.vm.provision "shell", inline: $script_ubuntu_install_gui
+        config.vm.provision :reload
+        config.vm.provision "shell", inline: $script_guest_additions_packages
+        config.vm.provision :reload
+        config.vm.provision "shell",
+            env: {
+                "VIRTUALBOX_VERSION" => VIRTUALBOX_VERSION
+            },
+            inline: $script_guest_additions_installation
+    end
+    config.vm.provision "shell", inline: $script_ubuntu_user_creation
+    config.vm.provision :reload
+    config.vm.provision "shell",
+        env: {
+            "KAFKA_VERSION" => KAFKA_VERSION
+        },
+        inline: $script_ubuntu_install_kafka
+    config.vm.provision :reload
+
+end
